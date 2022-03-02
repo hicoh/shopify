@@ -404,8 +404,7 @@ abstract class Client
      */
     protected function setCallLimitParams()
     {
-        if (empty(json_decode($this->last_response->getBody(), true)) ||
-        empty($this->last_response->getHeader(self::CALL_LIMIT_HEADER)[0])) {
+        if (empty($this->last_response->getHeader(self::CALL_LIMIT_HEADER)[0])) {
             return;
         }
 

@@ -7,7 +7,7 @@ use Psr\Http\Message\ResponseInterface;
 
 class ClientException extends Exception
 {
-    private Client $client;
+    private ?Client $client;
 
     public function __construct($message = '', $code = 0, Exception $previous = null, Client $client = null)
     {
