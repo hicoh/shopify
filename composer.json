@@ -1,6 +1,6 @@
 {
   "name": "hicoh/shopify",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Shopify PHP SDK to interact with the Shopify API.",
   "require": {
     "guzzlehttp/guzzle": "^7.3",
