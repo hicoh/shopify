@@ -86,7 +86,7 @@ abstract class Client
      *
      * @var ResponseInterface
      */
-    protected $last_response;
+    protected $last_response = null;
 
     /**
      * Whether the response we got back had errors.
