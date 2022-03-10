@@ -23,11 +23,11 @@ abstract class Client
      * @var array
      */
     public $allowed_page_info_params = [
-    'page_info',
-    'limit',
-    'fields',
-    '_apiFeatures',
-  ];
+        'page_info',
+        'limit',
+        'fields',
+        '_apiFeatures',
+    ];
 
     /**
      * Fetches data from the API as JSON.
@@ -49,9 +49,9 @@ abstract class Client
      * @var array
      */
     public $default_opts = [
-    'connect_timeout' => 3.0,
-    'timeout' => 3.0,
-  ];
+        'connect_timeout' => 3.0,
+        'timeout' => 3.0,
+    ];
 
     /**
      * Default limit number of resources to fetch from Shopify.
@@ -75,11 +75,18 @@ abstract class Client
     protected $delay_next_call = false;
 
     /**
+     * Determines whether it is the first request of the client.
+     *
+     * @var bool
+     */
+    protected $first_request = false;
+
+    /**
      * The last response from the API.
      *
      * @var ResponseInterface
      */
-    protected $last_response;
+    protected $last_response = null;
 
     /**
      * Whether the response we got back had errors.
@@ -192,6 +199,9 @@ abstract class Client
      */
     public function request($method, $resource, array $opts = [])
     {
+        if (null === $this->last_response) {
+            $this->first_request = true;
+        }
         if ($this->fetch_as_json && !isset($opts['headers']['Accept'])) {
             $opts['headers']['Accept'] = 'application/json';
         }
@@ -222,11 +232,16 @@ abstract class Client
             }
         } catch (GuzzleHttp\Exception\RequestException $e) {
             $this->last_response = $e->getResponse();
+
             if ($this->last_response instanceof ResponseInterface) {
                 $this->handleScopeException($e);
 
                 $this->has_errors = true;
                 $this->errors = $this->getResponseJsonObjectKey($this->last_response, 'errors');
+                if ($this->first_request && $this->isRateLimitError($this->cleanClientException($this->errors))) {
+                    sleep(rand(3, 10));
+                    $this->request($method, $resource, $opts);
+                }
                 throw new ClientException(print_r($this->errors, true), $this->last_response->getStatusCode(), $e, $this);
             } else {
                 throw new ClientException('Request failed ('.$this->shop_domain.':'.$method.':'.$resource.'):'.print_r($opts, true), 0, $e, $this);
@@ -245,6 +260,29 @@ abstract class Client
         }
 
         return $this->last_response;
+    }
+
+    protected function isRateLimitError(string $message)
+    {
+        return strstr($message, 'calls per second for api client');
+    }
+
+    /**
+     * Cleanup the error message back from Shopify package.
+     */
+    public function cleanClientException(string $message): string
+    {
+        $string = 'Shopify has reported errors with the following fields: ';
+        $decoded_message = json_decode($message, true);
+        if (is_array($decoded_message)) {
+            foreach ($decoded_message as $field => $reasons) {
+                $string .= $field.' = '.$reasons[0].', ';
+            }
+        } else {
+            $string .= str_replace(['stdClass Object', "(\n", ")\n"], '', $message);
+        }
+
+        return $string;
     }
 
     /**
@@ -584,10 +622,10 @@ abstract class Client
     protected function getApiUrl()
     {
         $url = strtr(self::URL_FORMAT, [
-      '{api_key}' => $this->api_key,
-      '{password}' => $this->password,
-      '{shop_domain}' => $this->shop_domain,
-    ]);
+            '{api_key}' => $this->api_key,
+            '{password}' => $this->password,
+            '{shop_domain}' => $this->shop_domain,
+        ]);
 
         if (!empty($this->version)) {
             $url .= 'api/'.$this->version.'/';
