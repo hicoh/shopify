@@ -238,7 +238,7 @@ abstract class Client
 
                 $this->has_errors = true;
                 $this->errors = $this->getResponseJsonObjectKey($this->last_response, 'errors');
-                if ($this->first_request && $this->isRateLimitError($this->cleanClientException($this->errors))) {
+                if ($this->first_request && $this->isRateLimitError($this->cleanClientException(print_r($this->errors, true)))) {
                     sleep(rand(3, 10));
                     $this->request($method, $resource, $opts);
                 }
