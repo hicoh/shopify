@@ -44,6 +44,13 @@ abstract class Client
     public $rate_limit = true;
 
     /**
+     * How many times a rate limited call should be retried.
+     *
+     * @var int
+     */
+    public $max_retries = 10;
+
+    /**
      * Set default options.
      *
      * @var array
@@ -186,22 +193,21 @@ abstract class Client
      * Makes a request to the Shopify API.
      *
      * @param string $method
-     *                         HTTP Method, either GET, POST, PUT, DELETE
+     *                              HTTP Method, either GET, POST, PUT, DELETE
      * @param string $resource
-     *                         Shopify resource. Such as shop, products, customers, orders, etc.
+     *                              Shopify resource. Such as shop, products, customers, orders, etc.
      * @param array  $opts
-     *                         Options to pass to the request
+     *                              Options to pass to the request
+     * @param int    $attempt_count
+     *                              Number of times request has been attempted
      *
      * @return responseInterface
      *                           Returns a Response object
      *
      * @throws ClientException
      */
-    public function request($method, $resource, array $opts = [])
+    public function request($method, $resource, array $opts = [], int $attempt_count = 0)
     {
-        if (null === $this->last_response) {
-            $this->first_request = true;
-        }
         if ($this->fetch_as_json && !isset($opts['headers']['Accept'])) {
             $opts['headers']['Accept'] = 'application/json';
         }
@@ -238,9 +244,10 @@ abstract class Client
 
                 $this->has_errors = true;
                 $this->errors = $this->getResponseJsonObjectKey($this->last_response, 'errors');
-                if ($this->first_request && $this->isRateLimitError($this->cleanClientException(print_r($this->errors, true)))) {
+                if ($attempt_count < $this->max_retries && $this->isRateLimitError($this->cleanClientException(print_r($this->errors, true)))) {
                     sleep(rand(3, 10));
-                    $this->request($method, $resource, $opts);
+
+                    return $this->request($method, $resource, $opts, ++$attempt_count);
                 }
                 throw new ClientException(print_r($this->errors, true), $this->last_response->getStatusCode(), $e, $this);
             } else {
